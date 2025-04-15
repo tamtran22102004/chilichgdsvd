@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Lịch nấu ăn & rửa chén</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 40px;
+      color: #333;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+    }
+    button {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #2563eb;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 30px 0;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+      background-color: white;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #f3f4f6;
+    }
+    td.job-title {
+      font-weight: bold;
+      background-color: #f9fafb;
+    }
+    .member-editor {
+      margin: 40px 0 20px;
+    }
+    .member-editor textarea {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Phần chỉnh sửa danh sách người dùng -->
+  <div class="member-editor">
+    <h2>Danh sách người dùng</h2>
+    <textarea id="member-input" rows="4">Jos Thịnh, Anh Duy, Toàn, Quốc Duy, Đạt, Hiếu, Phương, Đăng, Tuân, Huy, Cá, Khoa, Tâm, Vũ, Tú, Quý, Tiến, Thịnh, Kiệt, Thuận, Son, Chương, Văn Trường</textarea>
+  </div>
+
+  <button onclick="updateMembers(); generateSchedule()">Tạo Lịch Mới</button>
+  <h1>Lịch nấu ăn & rửa chén</h1>
+
+  <table id="schedule-table">
+    <thead>
+      <tr>
+        <th>Công việc</th>
+        <th>Thứ 2</th>
+        <th>Thứ 3</th>
+        <th>Thứ 4</th>
+        <th>Thứ 5</th>
+        <th>Thứ 6</th>
+        <th>Thứ 7</th>
+        <th>Chủ nhật</th>
+      </tr>
+    </thead>
+    <tbody id="schedule-body"></tbody>
+  </table>
+
+  <h2>Thống kê số lượt làm</h2>
+  <table id="stats-table">
+    <thead>
+      <tr>
+        <th>Người dùng</th>
+        <th>Số lần nấu ăn</th>
+        <th>Số lần rửa chén</th>
+      </tr>
+    </thead>
+    <tbody id="stats-body"></tbody>
+  </table>
+</div>
+
+<script>
+let members = [];
+
+function updateMembers() {
+  const input = document.getElementById('member-input').value;
+  members = input.split(',')
+    .map(name => name.trim())
+    .filter(name => name.length > 0);
+}
+
+const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+const jobs = [
+  { label: 'Nấu ăn sáng', type: 'cook' },
+  { label: 'Rửa chén trưa', type: 'wash' },
+  { label: 'Nấu ăn chiều', type: 'cook' },
+  { label: 'Rửa chén tối', type: 'wash' }
+];
+
+function shuffleArray(array) {
+  const arr = array.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function generateSchedule() {
+  if (members.length === 0) {
+    alert('Danh sách người dùng đang trống!');
+    return;
+  }
+
+  const schedule = {};
+  const stats = {};
+  members.forEach(name => stats[name] = { cook: 0, wash: 0 });
+
+  let queue = shuffleArray(members);
+  let index = 0;
+  const assignUser = () => {
+    if (index >= queue.length) index = 0;
+    return queue[index++];
+  };
+
+  const allJobs = [];
+  days.forEach(day => {
+    jobs.forEach(job => allJobs.push({ day, job }));
+  });
+
+  queue = shuffleArray(members);
+  index = 0;
+
+  allJobs.sort((a, b) => (a.job.type === 'cook' ? -1 : 1));
+
+  allJobs.forEach(({ day, job }) => {
+    if (!schedule[day]) schedule[day] = {};
+    const assigned = [assignUser(), assignUser()];
+    schedule[day][job.label] = assigned;
+    assigned.forEach(name => stats[name][job.type]++);
+  });
+
+  // Render schedule
+  const scheduleBody = document.getElementById('schedule-body');
+  scheduleBody.innerHTML = '';
+  jobs.forEach(job => {
+    const row = document.createElement('tr');
+    const jobCell = document.createElement('td');
+    jobCell.textContent = job.label;
+    jobCell.classList.add('job-title');
+    row.appendChild(jobCell);
+
+    days.forEach(day => {
+      const cell = document.createElement('td');
+      const names = schedule[day][job.label] || [];
+      cell.innerHTML = names.join('<br>');
+      row.appendChild(cell);
+    });
+
+    scheduleBody.appendChild(row);
+  });
+
+  // Render stats
+  const statsBody = document.getElementById('stats-body');
+  statsBody.innerHTML = '';
+  members.forEach(name => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${name}</td>
+      <td>${stats[name].cook}</td>
+      <td>${stats[name].wash}</td>
+    `;
+    statsBody.appendChild(row);
+  });
+}
+
+// Khởi tạo ban đầu
+updateMembers();
+generateSchedule();
+</script>
+
+</body>
+</html>
