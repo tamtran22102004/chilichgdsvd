@@ -2,345 +2,431 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Lịch nấu ăn & rửa chén</title>
-
-  <!-- Thư viện exceljs -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.2.1/exceljs.min.js"></script>
-
+  <title>Lịch trực nấu/rửa</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Custom Animation -->
   <style>
-    body {
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: #f9fafb;
-      margin: 0;
-      padding: 40px;
-      color: #333;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    h1, h2 {
-      text-align: center;
-      color: #1f2937;
-    }
-    .container {
-      max-width: 1200px;
-      margin: auto;
-    }
-    button {
-      display: inline-block;
-      margin: 20px 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #2563eb;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 30px 0;
-      box-shadow: 0 0 10px rgba(0,0,0,0.05);
-      background-color: white;
-    }
-    th, td {
-      border: 1px solid #e5e7eb;
-      padding: 15px;
-      text-align: center;
-      font-size: 16px; /* Tăng kích thước chữ */
-    }
-    th {
-      background-color: #80c9c1; /* Màu nền của tiêu đề */
-      color: white;
-    }
-    td.job-title {
-      font-weight: bold;
-      background-color: #fef3c7; /* Màu nền cho công việc */
-    }
-    .member-editor {
-      margin: 40px 0 20px;
-    }
-    .member-editor textarea {
-      width: 100%;
-      padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    .button-group {
-      text-align: center;
+    .animate-fade-in {
+      animation: fadeIn 0.7s ease-out both;
     }
   </style>
+
 </head>
-<body>
-<div class="container">
+<body class="bg-gray-100 min-h-screen p-0 m-0 font-sans text-gray-900">
+    <!-- HEADER -->
+    <header class="bg-[#111827] text-white py-6 shadow-md sticky top-0 z-50">
+      <div class="max-w-5xl mx-auto px-4 flex items-center justify-between">
+        <h1 class="text-2xl md:text-3xl font-bold tracking-wide flex items-center gap-2">
+          <span>❤️</span> Gia Đình Sinh Viên Đức Maria
+        </h1>
+      </div>
+    </header>
+  
+    <!-- MAIN CONTENT -->
+    <main class="max-w-4xl mx-auto space-y-10 py-10 px-4 animate-fade-in">
+      <!-- Nhập danh sách thành viên -->
+      <div class="bg-white border-2 border-red-400 hover:border-red-500 hover:shadow-xl transition-all duration-300 rounded-2xl p-6">
+        <h2 class="text-3xl font-semibold mb-6 text-gray-800">Nhập danh sách thành viên</h2>
+        <div class="flex flex-col md:flex-row gap-4">
+          <textarea id="member-input"
+            placeholder="Ví dụ: Nam, Huyền, Bình"
+            class="w-full md:flex-1 h-36 px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-base resize-y focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+          ></textarea>
+          <button onclick="updateMembers()"
+            class="self-start bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transform hover:scale-105 transition duration-200 shadow-md hover:shadow-lg">
+            Cập nhật
+          </button>
+        </div>
+      </div>
+  
+      <!-- Lịch trực trong tuần -->
+      <div class="bg-white border-2 border-red-300 hover:border-red-500 hover:shadow-xl transition-all duration-300 rounded-2xl p-6">
+        <h2 class="text-3xl font-semibold mb-6 text-gray-800">Lịch trực trong tuần</h2>
+        <div class="overflow-x-auto">
+          <table id="schedule-table" class="min-w-full text-center border border-gray-300 rounded-md overflow-hidden">
+            <thead class="bg-gray-200 text-gray-700">
+              <tr>
+                <th class="border px-4 py-2">Ngày</th>
+                <th class="border px-4 py-2">Trưa (nấu + rửa)</th>
+                <th class="border px-4 py-2">Chiều (nấu + rửa)</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white text-gray-800"></tbody>
+          </table>
+        </div>
+      </div>
+  
+      <!-- Thống kê công việc -->
+      <div class="bg-white border-2 border-red-300 hover:border-red-500 hover:shadow-xl transition-all duration-300 rounded-2xl p-6">
+        <h2 class="text-3xl font-semibold mb-6 text-gray-800">Thống kê công việc</h2>
+        <div class="overflow-x-auto">
+          <table id="stats-table" class="min-w-full text-center border border-gray-300 rounded-md overflow-hidden">
+            <thead class="bg-gray-200 text-gray-700">
+              <tr>
+                <th class="border px-4 py-2">Thành viên</th>
+                <th class="border px-4 py-2">Số lần nấu</th>
+                <th class="border px-4 py-2">Số lần rửa</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white text-gray-800"></tbody>
+          </table>
+        </div>
+      </div>
+  
+      <!-- Nút xuất Excel -->
+      <div class="text-center pt-4">
+        <button onclick="exportToExcel()"
+          class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transform hover:scale-105 transition duration-200 shadow-md hover:shadow-lg">
+          📤 Xuất Excel
+        </button>
+      </div>
+    </main>
+  
+    <!-- FOOTER -->
+    <footer class="bg-[#1f2937] text-gray-200 py-6 mt-12">
+      <div class="max-w-5xl mx-auto px-4 grid md:grid-cols-2 gap-4 text-sm">
+        <div>
+          <h3 class="font-semibold text-base mb-2">Liên hệ</h3>
+          <p><span class="inline-block w-5">📧</span> tranminhtam22104@gmail.com</p>
+          <p><span class="inline-block w-5">📍</span> 752/111 Lạc Long Quân, P9, Q.Tân Bình</p>
+        </div>
+        <div class="text-gray-400 text-right md:text-left md:pl-10">
+          <p>© 2025 Gia Đình Sinh Viên Đức Maria</p>
+        </div>
+      </div>
+    </footer>
+  
 
-  <!-- Phần chỉnh sửa danh sách người dùng -->
-  <div class="member-editor">
-    <h2>Danh sách người dùng</h2>
-    <textarea id="member-input" rows="4">Jos Thịnh, Anh Duy, Toàn, Quốc Duy, Đạt, Hiếu, Phương, Đăng, Tuân, Huy, Cá, Khoa, Tâm, Vũ, Tú, Quý, Tiến, Thịnh, Kiệt, Thuận, Son, Chương, Văn Trường</textarea>
-  </div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSfbUpn9_QqrQ3gVC7IsaguZ-nM4AC6q0",
+      authDomain: "schedule-1a530.firebaseapp.com",
+      projectId: "schedule-1a530",
+      storageBucket: "schedule-1a530.appspot.com",
+      messagingSenderId: "820905376079",
+      appId: "1:820905376079:web:d042c16034d2b56c0b2d3a"
+    };
+  
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+  
+    const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+    let members = [];
+  
+    function updateMembers() {
+      const input = document.getElementById('member-input').value;
+      members = input.split(',').map(name => name.trim()).filter(name => name.length > 0);
+  
+      // Shuffle danh sách
+      for (let i = members.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [members[i], members[j]] = [members[j], members[i]];
+      }
+  
+      db.collection("schedule").doc("members").set({ list: members })
+        .then(() => {
+          console.log("Đã lưu danh sách thành viên");
+          generateSchedule();
+        })
+        .catch(err => console.error("Lỗi:", err));
+    }
+  
+    async function generateSchedule() {
+      if (members.length === 0) return;
+  
+      // Lấy history hiện có
+      const historyDoc = await db.collection("schedule").doc("history").get();
+      let history = {};
+      if (historyDoc.exists) {
+        history = historyDoc.data();
+      }
+  
+      // Đảm bảo mỗi thành viên mới có entry trong history
+      members.forEach(name => {
+        if (!history[name]) history[name] = 0;
+      });
+  
+      // Sắp xếp tăng dần theo tổng số lượt trước đó
+      members.sort((a, b) => history[a] - history[b]);
+  
+      const tbody = document.querySelector("#schedule-table tbody");
+      tbody.innerHTML = "";
+      let idx = 0;
+      const stats = {};
+      const scheduleData = [];
+  
+      days.forEach(day => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${day}</td>`;
+  
+        let daily = { day, trua: "", chieu: "" };
+        const people = [];
+  
+        for (let i = 0; i < 4; i++) {
+          const person = members[idx % members.length];
+          stats[person] = (stats[person] || { nấu: 0, rửa: 0 });
+  
+          // Mỗi người được tính 1 lần nấu và 1 lần rửa
+          stats[person].nấu += 1;
+          stats[person].rửa += 1;
+  
+          people.push(person);
+          idx++;
+        }
+  
+        daily.trua = `${people[0]} + ${people[1]}`;
+        daily.chieu = `${people[2]} + ${people[3]}`;
+  
+        tr.innerHTML += `<td>${daily.trua}</td><td>${daily.chieu}</td>`;
+        tbody.appendChild(tr);
+        scheduleData.push(daily);
+      });
+  
+      // Hiển thị thống kê
+      const statBody = document.querySelector("#stats-table tbody");
+      statBody.innerHTML = "";
+      const allNames = new Set([...Object.keys(history), ...members]);
+  
+      allNames.forEach(name => {
+        const data = stats[name] || { nấu: 0, rửa: 0 };
+        statBody.innerHTML += `
+          <tr>
+            <td>${name}</td>
+            <td>${data.nấu}</td>
+            <td>${data.rửa}</td>
+          </tr>`;
+      });
+  
+      // Cập nhật lịch sử tổng lượt
+      const newHistory = { ...history };
+      Object.entries(stats).forEach(([name, data]) => {
+        newHistory[name] = (history[name] || 0) + data.nấu + data.rửa;
+      });
+  
+      await db.collection("schedule").doc("history").set(newHistory);
+      await db.collection("schedule").doc("latest").set({ schedule: scheduleData });
+      await db.collection("schedule").doc("stats").set(stats);
+    }
+  
+    async function loadSchedule() {
+      const latestDoc = await db.collection("schedule").doc("latest").get();
+      if (!latestDoc.exists) return;
+  
+      const data = latestDoc.data().schedule || [];
+      const tbody = document.querySelector("#schedule-table tbody");
+      tbody.innerHTML = "";
+  
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.day}</td><td>${row.trua}</td><td>${row.chieu}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  
+    async function loadStats() {
+      const doc = await db.collection("schedule").doc("stats").get();
+      const statBody = document.querySelector("#stats-table tbody");
+      statBody.innerHTML = "";
+  
+      const allNames = new Set();
+  
+      // Kết hợp từ members và dữ liệu firebase (tránh bỏ sót người cũ)
+      if (doc.exists) {
+        const stats = doc.data();
+        Object.keys(stats).forEach(name => allNames.add(name));
+      }
+      members.forEach(name => allNames.add(name));
+  
+      for (let name of allNames) {
+        const data = doc.exists ? (doc.data()[name] || { nấu: 0, rửa: 0 }) : { nấu: 0, rửa: 0 };
+        statBody.innerHTML += `
+          <tr>
+            <td>${name}</td>
+            <td>${data.nấu}</td>
+            <td>${data.rửa}</td>
+          </tr>`;
+      }
+    }
+  
+    async function exportToExcel() {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Lịch công tác và thống kê");
 
-  <div class="button-group">
-    <button onclick="updateMembers(); generateSchedule()">Tạo Lịch Mới</button>
-    <button onclick="exportToExcel()">Xuất Excel</button>
-  </div>
-
-  <h1>Lịch nấu ăn & rửa chén</h1>
-
-  <table id="schedule-table">
-    <thead>
-      <tr>
-        <th>Công việc</th>
-        <th>Thứ 2</th>
-        <th>Thứ 3</th>
-        <th>Thứ 4</th>
-        <th>Thứ 5</th>
-        <th>Thứ 6</th>
-        <th>Thứ 7</th>
-        <th>Chủ nhật</th>
-      </tr>
-    </thead>
-    <tbody id="schedule-body"></tbody>
-  </table>
-
-  <h2>Thống kê số lượt làm</h2>
-  <table id="stats-table">
-    <thead>
-      <tr>
-        <th>Người dùng</th>
-        <th>Số lần nấu ăn</th>
-        <th>Số lần rửa chén</th>
-      </tr>
-    </thead>
-    <tbody id="stats-body"></tbody>
-  </table>
-</div>
-
-<script>
-let members = [];
-let schedule = {};
-let stats = {};
-
-function updateMembers() {
-  const input = document.getElementById('member-input').value;
-  members = input.split(',')
-    .map(name => name.trim())
-    .filter(name => name.length > 0);
-}
-
-const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
-const jobs = [
-  { label: 'Nấu sáng + Rửa trưa', types: ['cook', 'wash'] },
-  { label: 'Nấu chiều + Rửa tối', types: ['cook', 'wash'] }
-];
-
-function shuffleArray(array) {
-  const arr = array.slice();
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
-
-function generateSchedule() {
-  if (members.length === 0) {
-    alert('Danh sách người dùng đang trống!');
-    return;
-  }
-
-  schedule = {};
-  stats = {};
-  members.forEach(name => stats[name] = { cook: 0, wash: 0 });
-
-  let queue = shuffleArray(members);
-  let index = 0;
-  const assignUser = () => {
-    if (index >= queue.length) index = 0;
-    return queue[index++];
-  };
-
-  const allJobs = [];
-  days.forEach(day => {
-    jobs.forEach(job => allJobs.push({ day, job }));
-  });
-
-  queue = shuffleArray(members);
-  index = 0;
-
-  allJobs.forEach(({ day, job }) => {
-    if (!schedule[day]) schedule[day] = {};
-    const assigned = [assignUser(), assignUser()];
-    schedule[day][job.label] = assigned;
-
-    assigned.forEach(name => {
-      job.types.forEach(type => stats[name][type]++);
-    });
-  });
-
-  // Hiển thị lịch trực
-  const scheduleBody = document.getElementById('schedule-body');
-  scheduleBody.innerHTML = '';
-  jobs.forEach(job => {
-    const row = document.createElement('tr');
-    const jobCell = document.createElement('td');
-    jobCell.textContent = job.label;
-    jobCell.classList.add('job-title');
-    row.appendChild(jobCell);
-
-    days.forEach(day => {
-      const cell = document.createElement('td');
-      const names = schedule[day][job.label] || [];
-      cell.innerHTML = names.join('<br>');
-      row.appendChild(cell);
-    });
-
-    scheduleBody.appendChild(row);
-  });
-
-  // Hiển thị thống kê
-  const statsBody = document.getElementById('stats-body');
-  statsBody.innerHTML = '';
-  members.forEach(name => {
-    const row = document.createElement('tr');
-    row.innerHTML = `
-      <td>${name}</td>
-      <td>${stats[name].cook}</td>
-      <td>${stats[name].wash}</td>
-    `;
-    statsBody.appendChild(row);
-  });
-}
-
-function exportToExcel() {
-  const wb = new ExcelJS.Workbook();
-  const sheet = wb.addWorksheet('Lịch trực & Thống kê');
-
-  // Tiêu đề chính
-  sheet.mergeCells('A1:H1');
-  const titleCell = sheet.getCell('A1');
-  titleCell.value = 'LỊCH CÔNG TÁC NẤU ĂN RỬA CHÉN';
+  // Tiêu đề lớn
+  sheet.mergeCells("A1:F1");
+  const titleCell = sheet.getCell("A1");
+  titleCell.value = "LỊCH CÔNG TÁC NẤU ĂN RỬA CHÉN VÀ THỐNG KÊ";
   titleCell.font = { bold: true, size: 14 };
-  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'C6EFCE' } }; // xanh lá nhạt
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
+  titleCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "C6EFCE" }
+  };
   titleCell.border = {
-    top: { style: 'thin', color: { argb: '000000' } },
-    left: { style: 'thin', color: { argb: '000000' } },
-    bottom: { style: 'thin', color: { argb: '000000' } },
-    right: { style: 'thin', color: { argb: '000000' } }
+    top: { style: "thin", color: { argb: "000000" } },
+    left: { style: "thin", color: { argb: "000000" } },
+    bottom: { style: "thin", color: { argb: "000000" } },
+    right: { style: "thin", color: { argb: "000000" } }
   };
 
-  let currentRow = 2;
+  // Dữ liệu lịch công tác
+  const latestDoc = await db.collection("schedule").doc("latest").get();
+  const scheduleData = latestDoc.exists ? latestDoc.data().schedule : [];
 
-  // Header bảng lịch trực
-  const headerRow = sheet.getRow(currentRow++);
-  headerRow.values = ['Công việc', ...days];
-  headerRow.eachCell(cell => {
-    cell.font = { bold: true, size: 11 };
-    cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCCC' } };
+  // Header cho phần lịch công tác
+  sheet.mergeCells("A2:C2");
+  const scheduleHeaderCell = sheet.getCell("A2");
+  scheduleHeaderCell.value = "Lịch công tác (Nấu ăn và Rửa chén)";
+  scheduleHeaderCell.font = { bold: true, size: 12 };
+  scheduleHeaderCell.alignment = { horizontal: "center", vertical: "middle" };
+  scheduleHeaderCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFCCCC" }
+  };
+  scheduleHeaderCell.border = {
+    top: { style: "thin", color: { argb: "000000" } },
+    left: { style: "thin", color: { argb: "000000" } },
+    bottom: { style: "thin", color: { argb: "000000" } },
+    right: { style: "thin", color: { argb: "000000" } }
+  };
+
+  // Dòng header của lịch công tác
+  const scheduleHeaderRow = sheet.getRow(3);
+  scheduleHeaderRow.values = ["Ngày", "Trưa (nấu + rửa)", "Chiều (nấu + rửa)"];
+  scheduleHeaderRow.eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFCCCC" }
+    };
     cell.border = {
-      top: { style: 'thin', color: { argb: '000000' } },
-      left: { style: 'thin', color: { argb: '000000' } },
-      bottom: { style: 'thin', color: { argb: '000000' } },
-      right: { style: 'thin', color: { argb: '000000' } }
+      top: { style: "thin", color: { argb: "000000" } },
+      left: { style: "thin", color: { argb: "000000" } },
+      bottom: { style: "thin", color: { argb: "000000" } },
+      right: { style: "thin", color: { argb: "000000" } }
     };
   });
 
-  // Nội dung bảng lịch trực
-  jobs.forEach(job => {
-    const row = sheet.getRow(currentRow++);
-    const rowData = [job.label];
-    days.forEach(day => {
-      const names = schedule[day][job.label] || [];
-      rowData.push(names.join(', '));
-    });
-    row.values = rowData;
-    row.eachCell(cell => {
+  // Thêm dữ liệu lịch công tác
+  let rowIndex = 4;
+  scheduleData.forEach(row => {
+    const newRow = sheet.getRow(rowIndex++);
+    newRow.values = [row.day, row.trua, row.chieu];
+    newRow.eachCell(cell => {
       cell.font = { size: 10 };
-      cell.alignment = { vertical: 'middle', wrapText: true };
+      cell.alignment = { vertical: "middle", wrapText: true };
       cell.border = {
-        top: { style: 'thin', color: { argb: '000000' } },
-        left: { style: 'thin', color: { argb: '000000' } },
-        bottom: { style: 'thin', color: { argb: '000000' } },
-        right: { style: 'thin', color: { argb: '000000' } }
+        top: { style: "thin", color: { argb: "000000" } },
+        left: { style: "thin", color: { argb: "000000" } },
+        bottom: { style: "thin", color: { argb: "000000" } },
+        right: { style: "thin", color: { argb: "000000" } }
       };
     });
   });
 
-  // Chèn dòng trống
-  currentRow += 2;
+  // Tạo khoảng cách sau phần lịch công tác
+  rowIndex += 2;
 
-  // Tiêu đề phần thống kê
-  const statTitle = sheet.getRow(currentRow++);
-  statTitle.values = ['Thống kê tổng hợp'];
-  sheet.mergeCells(`A${statTitle.number}:C${statTitle.number}`);
-  statTitle.getCell(1).font = { bold: true, size: 12 };
-  statTitle.getCell(1).alignment = { horizontal: 'left' };
+  // Xuất thống kê từ Firestore
+  const statsDoc = await db.collection("schedule").doc("stats").get();
+  const statsData = statsDoc.exists ? statsDoc.data() : {};
 
-  // Header thống kê
-  const statHeader = sheet.getRow(currentRow++);
-  statHeader.values = ['Người dùng', 'Số lần nấu ăn', 'Số lần rửa chén'];
-  statHeader.eachCell(cell => {
-    cell.font = { bold: true, size: 11 };
-    cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCCC' } };
+  // Header cho phần thống kê
+  sheet.mergeCells(`A${rowIndex}:C${rowIndex}`);
+  const statsHeaderCell = sheet.getCell(`A${rowIndex}`);
+  statsHeaderCell.value = "Thống kê tổng hợp";
+  statsHeaderCell.font = { bold: true, size: 12 };
+  statsHeaderCell.alignment = { horizontal: "center", vertical: "middle" };
+  statsHeaderCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFCCCC" }
+  };
+  statsHeaderCell.border = {
+    top: { style: "thin", color: { argb: "000000" } },
+    left: { style: "thin", color: { argb: "000000" } },
+    bottom: { style: "thin", color: { argb: "000000" } },
+    right: { style: "thin", color: { argb: "000000" } }
+  };
+
+  // Dòng header của thống kê
+  const statsHeaderRow = sheet.getRow(rowIndex + 1);
+  statsHeaderRow.values = ["Người dùng", "Số lần nấu ăn", "Số lần rửa chén"];
+  statsHeaderRow.eachCell(cell => {
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFCCCC" }
+    };
     cell.border = {
-      top: { style: 'thin', color: { argb: '000000' } },
-      left: { style: 'thin', color: { argb: '000000' } },
-      bottom: { style: 'thin', color: { argb: '000000' } },
-      right: { style: 'thin', color: { argb: '000000' } }
+      top: { style: "thin", color: { argb: "000000" } },
+      left: { style: "thin", color: { argb: "000000" } },
+      bottom: { style: "thin", color: { argb: "000000" } },
+      right: { style: "thin", color: { argb: "000000" } }
     };
   });
 
   // Dữ liệu thống kê
-  members.forEach(name => {
-    const row = sheet.getRow(currentRow++);
-    row.values = [name, stats[name].cook, stats[name].wash];
-    row.eachCell(cell => {
+  let statsRowIndex = rowIndex + 2;
+  for (const [user, stats] of Object.entries(statsData)) {
+    const statsRow = sheet.getRow(statsRowIndex++);
+    statsRow.values = [user, stats.nấu || 0, stats.rửa || 0];
+    statsRow.eachCell(cell => {
       cell.font = { size: 10 };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.alignment = { vertical: "middle", wrapText: true };
       cell.border = {
-        top: { style: 'thin', color: { argb: '000000' } },
-        left: { style: 'thin', color: { argb: '000000' } },
-        bottom: { style: 'thin', color: { argb: '000000' } },
-        right: { style: 'thin', color: { argb: '000000' } }
+        top: { style: "thin", color: { argb: "000000" } },
+        left: { style: "thin", color: { argb: "000000" } },
+        bottom: { style: "thin", color: { argb: "000000" } },
+        right: { style: "thin", color: { argb: "000000" } }
       };
     });
-  });
+  }
 
-  // Căn chỉnh cột chung
+  // Căn chỉnh cột
   sheet.columns = [
     { width: 20 },
-    { width: 20 },
-    { width: 20 },
-    { width: 20 },
-    { width: 20 },
-    { width: 20 },
-    { width: 20 },
-    { width: 20 }
+    { width: 25 },
+    { width: 25 }
   ];
 
   // Xuất file
-  wb.xlsx.writeBuffer().then((buffer) => {
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'lich-cong-tac-nau-an.xlsx';
-    a.click();
-  });
+  const blob = await workbook.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([blob]));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "lich_cong_tac_va_thong_ke.xlsx";
+  link.click();
 }
 
 
 
-// Khởi tạo mặc định
-updateMembers();
-generateSchedule();
-</script>
 
+
+  
+    // Load ban đầu
+    db.collection("schedule").doc("members").get().then(doc => {
+      if (doc.exists) {
+        members = doc.data().list || [];
+        document.getElementById('member-input').value = members.join(', ');
+        loadSchedule();
+        loadStats();
+      }
+    });
+  </script>
+  
 </body>
 </html>
