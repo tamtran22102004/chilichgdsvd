@@ -137,7 +137,10 @@
           📤 Xuất Excel
         </button>
       </div>
-      
+      <div id="missing-names" class="mt-6 bg-yellow-100 border border-yellow-300 rounded-lg p-4 shadow-md">
+  <!-- Kết quả sẽ hiển thị ở đây -->
+</div>
+
     </main>
     
     <!-- FOOTER -->
@@ -184,6 +187,7 @@
       db.collection("schedule").doc("members").set({ list: members })
         .then(() => {
           console.log("Đã lưu danh sách thành viên");
+          compareMembersAndHistory()
           generateSchedule();
         })
         .catch(err => console.error("Lỗi:", err));
@@ -556,6 +560,7 @@ function increaseWorkHistory() {
     return historyRef.set(data);
   }).then(() => {
     alert(`✅ Đã cập nhật ${amount} công việc cho các thành viên: ${names.join(", ")}`);
+    compareMembersAndHistory()
     document.getElementById("history-name-input").value = '';
     document.getElementById("history-amount-input").value = '';
     loadHistory();
@@ -567,7 +572,29 @@ function increaseWorkHistory() {
 
 
 
+async function compareMembersAndHistory() {
+  const db = firebase.firestore();
 
+  // Lấy danh sách từ `members`
+  const membersSnap = await db.collection("schedule").doc("members").get();
+  const membersList = membersSnap.exists ? membersSnap.data().list || [] : [];
+
+  // Lấy dữ liệu từ `history`
+  const historySnap = await db.collection("schedule").doc("history").get();
+  const historyData = historySnap.exists ? historySnap.data() : {};
+
+  // Tìm các tên có trong history nhưng không có trong members
+  const missingNames = Object.keys(historyData).filter(
+    name => !membersList.includes(name)
+  );
+
+  // Gán các tên thiếu vào ô input
+  const inputField = document.getElementById("history-name-input");
+  inputField.value = missingNames.join(', ');
+}
+  window.addEventListener('DOMContentLoaded', () => {
+    compareMembersAndHistory();
+  });
   
     // Load ban đầu
     db.collection("schedule").doc("members").get().then(doc => {
