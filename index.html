@@ -524,10 +524,10 @@
   });
 }
 function increaseWorkHistory() {
-  const name = document.getElementById("history-name-input").value.trim();
+  const namesInput = document.getElementById("history-name-input").value.trim();
   const amount = parseInt(document.getElementById("history-amount-input").value.trim());
 
-  if (!name) {
+  if (!namesInput) {
     alert("❗ Vui lòng nhập tên.");
     return;
   }
@@ -537,21 +537,34 @@ function increaseWorkHistory() {
     return;
   }
 
+  // Tách danh sách tên bằng dấu phẩy, loại bỏ khoảng trắng thừa
+  const names = namesInput.split(",").map(name => name.trim()).filter(name => name);
+
+  if (names.length === 0) {
+    alert("❗ Danh sách tên không hợp lệ.");
+    return;
+  }
+
   historyRef.get().then(doc => {
     const data = doc.exists ? doc.data() : {};
-    const current = data[name] || 0;
-    data[name] = current + amount;
+
+    names.forEach(name => {
+      const current = data[name] || 0;
+      data[name] = current + amount;
+    });
 
     return historyRef.set(data);
   }).then(() => {
-    alert(`✅ Đã cập nhật ${amount} công việc cho "${name}"`);
+    alert(`✅ Đã cập nhật ${amount} công việc cho các thành viên: ${names.join(", ")}`);
     document.getElementById("history-name-input").value = '';
     document.getElementById("history-amount-input").value = '';
-    loadHistory()
+    loadHistory();
   }).catch(err => {
     console.error(err);
-    });
+    alert("❌ Có lỗi xảy ra khi cập nhật dữ liệu.");
+  });
 }
+
 
 
 
